@@ -1,0 +1,7 @@
+server:
+  port: 8761 
+
+eureka:
+  client:
+    register-with-eureka: false # Vì chính nó là Server nên không cần tự đăng ký với chính mình
+    fetch-registry: false
