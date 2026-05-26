@@ -6,6 +6,18 @@ plugins {
     id("io.spring.dependency-management")
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmToolchain(21)
+    }
+}
+
 extra["springCloudVersion"] = "2023.0.5"
 
 dependencies {
