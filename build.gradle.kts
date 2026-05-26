@@ -1,9 +1,10 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.2.5" apply false
-    id("io.spring.dependency-management") version "1.1.4" apply false
-    kotlin("jvm") version "1.9.23" apply false
-    kotlin("plugin.spring") version "1.9.23" apply false
+    id("org.springframework.boot") version "3.3.10" apply false
+    id("io.spring.dependency-management") version "1.1.7" apply false
+    kotlin("jvm") version "1.9.24" apply false
+    kotlin("plugin.spring") version "1.9.24" apply false
+    id("org.jetbrains.kotlin.plugin.jpa") version "1.9.24" apply false
 }
 
 allprojects {

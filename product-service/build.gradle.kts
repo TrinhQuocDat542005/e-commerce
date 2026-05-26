@@ -1,9 +1,10 @@
 plugins {
-	kotlin("jvm") version "2.2.21"
-	kotlin("plugin.spring") version "2.2.21"
-	id("org.springframework.boot") version "4.0.6"
-	id("io.spring.dependency-management") version "1.1.7"
-	kotlin("plugin.jpa") version "2.2.21"
+	kotlin("jvm")
+	kotlin("plugin.spring")
+	id("org.springframework.boot")
+	id("io.spring.dependency-management")
+	id("org.jetbrains.kotlin.plugin.jpa")
+
 }
 
 group = "com.dat.ecommerce"
@@ -19,20 +20,25 @@ repositories {
 	mavenCentral()
 }
 
-extra["springCloudVersion"] = "2025.1.1"
-
+extra["springCloudVersion"] = "2023.0.5"
 dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-	implementation("org.springframework.boot:spring-boot-starter-webmvc")
-	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
-	implementation("tools.jackson.module:jackson-module-kotlin")
-	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
+
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 dependencyManagement {
@@ -43,7 +49,7 @@ dependencyManagement {
 
 kotlin {
 	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+		freeCompilerArgs.addAll("-Xjsr305=strict")
 	}
 }
 
