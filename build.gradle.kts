@@ -15,3 +15,10 @@ allprojects {
         mavenCentral()
     }
 }
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        freeCompilerArgs += "-Xjsr305=strict"
+        jvmTarget = "21"  // 
+    }
+}
