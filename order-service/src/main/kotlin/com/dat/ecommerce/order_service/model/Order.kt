@@ -10,8 +10,7 @@ data class Order(
     val id: Long? = null,
     val orderNumber: String = "",
     
-    // Mối quan hệ 1-Nhiều: Một đơn hàng chứa danh sách nhiều mặt hàng
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id") // Tự sinh khóa ngoại liên kết bảng trong PostgreSQL
+    @JoinColumn(name = "order_id")
     val orderLineItemsList: List<OrderLineItems> = mutableListOf()
 )

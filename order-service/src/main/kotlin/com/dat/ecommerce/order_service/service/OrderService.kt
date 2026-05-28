@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 @Service
-@Transactional // Đảm bảo tính toàn vẹn dữ liệu (Nếu lỗi tự động rollback)
+@Transactional
 class OrderService(private val orderRepository: OrderRepository) {
 
     fun placeOrder(orderRequest: OrderRequest) {
@@ -28,7 +28,6 @@ class OrderService(private val orderRepository: OrderRepository) {
         orderRepository.save(order)
     }
 
-    // Hàm phụ trợ ánh xạ dữ liệu DTO -> Entity độc lập
     private fun mapToEntity(orderLineItemsDto: OrderLineItemsDto): OrderLineItems {
         return OrderLineItems(
             skuCode = orderLineItemsDto.skuCode,

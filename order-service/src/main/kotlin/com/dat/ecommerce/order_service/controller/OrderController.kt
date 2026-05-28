@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*
 class OrderController(private val orderService: OrderService) {
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED) // Trả về mã trạng thái 201 nếu tạo đơn thành công
+    @ResponseStatus(HttpStatus.CREATED) 
     fun placeOrder(@RequestBody orderRequest: OrderRequest): String {
         orderService.placeOrder(orderRequest)
         return "Order Placed Successfully"
