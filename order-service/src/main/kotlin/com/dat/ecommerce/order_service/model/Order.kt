@@ -7,10 +7,10 @@ import jakarta.persistence.*
 data class Order(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
-    val orderNumber: String = "",
+    var id: Long? = null,
+    var orderNumber: String = "",
     
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
-    val orderLineItemsList: List<OrderLineItems> = mutableListOf()
+    var orderLineItemsList: List<OrderLineItems> = mutableListOf()
 )
