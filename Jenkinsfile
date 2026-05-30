@@ -29,8 +29,14 @@ pipeline {
         stage('3. Triển khai Docker Compose') {
             steps {
                 echo '🐳 Gọi Docker máy thật đúc Image mới và deploy đè...'
-                // Thằng Jenkins gõ lệnh này, Docker máy thật của ông dưới nền sẽ tự động nhận sớ và làm việc!
-                sh 'docker compose up -d --build'
+                
+                // [Vá lỗi chốt hạ] Liệt kê đích danh mớ backend và DB, CHỪA THẰNG JENKINS RA nha ông!
+                sh '''
+                    docker compose up -d --build \
+                    product-db order-db inventory-db \
+                    discovery-server product-service order-service inventory-service api-gateway
+                '''
+                
                 echo '🚀 Hệ thống Microservices Backend đã được cập nhật phiên bản mới nhất!'
             }
         }
