@@ -122,16 +122,15 @@ services:
 
   # 6. Robot quản gia Jenkins (Công cụ CI/CD)
   jenkins:
-    image: jenkins/jenkins:lts-jdk21
+    build:
+      context: .
+      dockerfile: jenkins.Dockerfile # <--- Bảo Compose đúc Image từ file Dockerfile vừa tạo
     container_name: jenkins-server
     restart: on-failure
+    user: root # <--- Ép chạy bằng quyền root tối cao để thò tay chiếm quyền socket máy thật
     ports:
-      - "8084:8080" # Mở cổng 8084 dưới máy thật để vào giao diện quản lý Jenkins
-      - "50000:50000" # Cổng giao tiếp nội bộ của Jenkins Agent
-    volumes:
-      - jenkins_data:/var/jenkins_home
-      # Dòng dưới này cực kỳ chí mạng: Cho phép Jenkins thò tay ra ngoài điều khiển Docker của máy thật
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "8084:8080"
+      - "50000:50000"
 
 networks:
   default:
