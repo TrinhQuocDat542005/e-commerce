@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # ==========================================================
+  # CỤM HẠ TẦNG DỮ LIỆU (POSTGRESQL)
+  # ==========================================================
+  product-db:
+    image: postgres:16-alpine
+    container_name: product-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: product_db
+    ports:
+      - "5433:5432" # Đổi cổng ngoài thành 5433 để tránh đụng độ nếu máy thật của ông đang bật Postgres
+
+  order-db:
+    image: postgres:16-alpine
+    container_name: order-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: order_db
+    ports:
+      - "5434:5432" # Đổi cổng ngoài thành 5434
+
+  inventory-db:
+    image: postgres:16-alpine
+    container_name: inventory-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inventory_db
+    ports:
+      - "5435:5432" # Đổi cổng ngoài thành 5435
+
+  # ==========================================================
+  # CỤM BACKEND MICROSERVICES
+  # ==========================================================
+  
+  # 1. Tổng đài Eureka Server
+  discovery-server:
+    build:
+      context: .
+      dockerfile: discovery-server/Dockerfile
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+
+  # 2. Dịch vụ Sản phẩm (Product Service)
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
+    restart: on-failure
+    ports:
+      - "8081:8081"
+    depends_on:
+      - discovery-server
+      - product-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://product-db:5432/product_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+
+  # 3. Dịch vụ Đơn hàng (Order Service)
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    restart: on-failure
+    ports:
+      - "8082:8082"
+    depends_on:
+      - discovery-server
+      - order-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://order-db:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+
+  # 4. Dịch vụ Tồn kho (Inventory Service)
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: inventory-service
+    restart: on-failure
+    ports:
+      - "8083:8083"
+    depends_on:
+      - discovery-server
+      - inventory-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://inventory-db:5432/inventory_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+
+  # 5. Cổng Gateway (API Gateway)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      # Nếu gateway của ông cấu hình định tuyến qua Eureka (lb://PRODUCT-SERVICE) thì giữ nguyên, 
+      # còn nếu định tuyến bằng url cứng thì nhớ đổi sang dạng http://product-service:8081 nha!
+
+  # 6. Robot quản gia Jenkins (Công cụ CI/CD)
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-server
+    restart: on-failure
+    ports:
+      - "8084:8080" # Mở cổng 8084 dưới máy thật để vào giao diện quản lý Jenkins
+      - "50000:50000" # Cổng giao tiếp nội bộ của Jenkins Agent
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      # Dòng dưới này cực kỳ chí mạng: Cho phép Jenkins thò tay ra ngoài điều khiển Docker của máy thật
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  default:
+    name: ecommerce-network
+
+# Định nghĩa phân vùng ổ cứng để Jenkins không bị mất dữ liệu khi restart container
+volumes:
+  jenkins_data: {}
