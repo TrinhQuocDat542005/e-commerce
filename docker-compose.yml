@@ -135,6 +135,13 @@ services:
       - jenkins_data:/var/jenkins_home # [Fix 1] Giữ lại toàn bộ cấu hình, tài khoản Jenkins khi restart
       - /var/run/docker.sock:/var/run/docker.sock # [Fix 2] Đường ống dẫn dầu giúp Jenkins ra lệnh cho Docker máy thật
 
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: zipkin-server
+    restart: on-failure
+    ports:
+      - "9411:9411"
+
 networks:
   default:
     name: ecommerce-network

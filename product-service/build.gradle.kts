@@ -31,6 +31,12 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    implementation("io.micrometer:micrometer-tracing-bridge-brave")
+	
+    implementation("io.zipkin.reporter2:zipkin-reporter-brave")
+
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
