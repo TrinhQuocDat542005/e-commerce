@@ -35,10 +35,10 @@ class OrderService(
 
         // 2. Dùng WebClient bắn HTTP GET Request sang Inventory Service (Cổng 8083)
         val inventoryResponseArray = webClient.get()
-            .uri("http://localhost:8083/api/inventory") { uriBuilder ->
-                uriBuilder.queryParam("skuCode", skuCodes).build() 
-                // Tự động map thành: ?skuCode=iphone_15&skuCode=iphone_15_pro
+            .uri("http://inventory-service:8083/api/inventory") { uriBuilder ->
+                uriBuilder.queryParam("skuCode", skuCodes).build()
             }
+            
             .retrieve()
             .bodyToMono(Array<InventoryResponse>::class.java) // Hứng mớ JSON trả về ép thành mảng Object
             .block() // Ép WebClient chạy đồng bộ (Synchronous) để đợi kết quả trả về rồi mới đi tiếp
