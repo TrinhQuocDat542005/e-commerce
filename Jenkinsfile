@@ -1,57 +1,47 @@
 pipeline {
     agent any
 
-    // Cấu hình hiển thị thời gian chạy cho đẹp và dễ tracking
     options {
         timestamps()
         timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
-        // ==========================================
-        // STAGE 1: KÉO CODE MỚI NHẤT VỀ
-        // ==========================================
-        stage('1. Kéo code từ GitHub') {
+        // Vì code đã được mount đồng bộ trực tiếp từ máy thật, Stage 1 chỉ làm nhiệm vụ check-in kiểm tra
+        stage('1. Xác thực Mã nguồn') {
             steps {
-                echo '📥 Quản gia đang kéo code mới nhất từ GitHub về phân vùng sạch...'
-                checkout scm
+                echo '📥 Workspace đã được đồng bộ an toàn từ Host Máy thật!'
+                sh 'ls -la' // Lệnh này để ông soi xem file gradlew đã xuất hiện chưa
             }
         }
 
-        // ==========================================
-        // STAGE 2: BIÊN DỊCH VÀ KIỂM TRA LỖI (CI)
-        // ==========================================
         stage('2. Biên dịch hệ thống (Gradle Build)') {
             steps {
-                echo '🛠️ Bắt đầu compile toàn bộ hệ thống Multi-Module Spring Boot...'
-                // Cấp quyền thực thi cho file gradlew trong môi trường Linux của Jenkins
+                echo '🛠️ Cấp quyền và kích hoạt đúc file JAR...'
+                // Ép quyền thực thi cho file gradlew để né lỗi Permission Denied trên Linux
                 sh 'chmod +x gradlew'
-                // Chạy lệnh build tất cả file JAR cùng lúc, bỏ qua chạy test để chạy cho thần tốc
+                // Chạy lệnh Wrapper đúc file JAR thần tốc cho hệ Multi-Module
                 sh './gradlew clean bootJar -x test'
-                echo '🎉 Biên dịch thành công! Code sạch không có lỗi cú pháp.'
+                echo '🎉 Biên dịch thành công! Code sạch không bẩn.'
             }
         }
 
-        // ==========================================
-        // STAGE 3: ĐÓNG GÓI & CẬP NHẬT CONTAINER (CD)
-        // ==========================================
-        stage('3. Đúc Image & Triển khai Docker') {
+        stage('3. Triển khai Docker Compose') {
             steps {
-                echo '🐳 Kích hoạt Docker Compose để đúc Image mới và deploy đè...'
-                // Lệnh này giúp Docker Compose tự kiểm tra xem module nào có code mới thì tự đúc lại Image và khởi động lại container đó, các container khác giữ nguyên không bị gián đoạn!
+                echo '🐳 Gọi Docker máy thật đúc Image mới và deploy đè...'
+                // Thằng Jenkins gõ lệnh này, Docker máy thật của ông dưới nền sẽ tự động nhận sớ và làm việc!
                 sh 'docker compose up -d --build'
-                echo '🚀 Hệ thống Microservices đã được tự động cập nhật lên phiên bản mới nhất!'
+                echo '🚀 Hệ thống Microservices Backend đã được cập nhật phiên bản mới nhất!'
             }
         }
     }
 
-    // Báo cáo thành quả về Terminal
     post {
         success {
-            echo '✅ CHÚC MỪNG ÔNG: ĐƯỜNG ỐNG CI/CD ĐÃ CHẠY THÀNH CÔNG MỸ MÃN!'
+            echo '✅ TỰ ĐỘNG HÓA THÀNH CÔNG MỸ MÃN! HỆ THỐNG ĐÃ LÊN ĐÈN XANH.'
         }
         failure {
-            echo '❌ TOI RỒI ÔNG ƠI: BUILD BỊ LỖI, VÀO CHECK LOG NGAY!'
+            echo '❌ TOI RỒI ÔNG ƠI: ĐƯỜNG ỐNG SẬP, VÀO CHECK LOG NGAY!'
         }
     }
 }

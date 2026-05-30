@@ -124,13 +124,16 @@ services:
   jenkins:
     build:
       context: .
-      dockerfile: jenkins.Dockerfile # <--- Bảo Compose đúc Image từ file Dockerfile vừa tạo
+      dockerfile: jenkins.Dockerfile
     container_name: jenkins-server
     restart: on-failure
-    user: root # <--- Ép chạy bằng quyền root tối cao để thò tay chiếm quyền socket máy thật
+    user: root # Ép quyền root để có đủ thẩm quyền thọc vào socket máy thật
     ports:
       - "8084:8080"
       - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home # [Fix 1] Giữ lại toàn bộ cấu hình, tài khoản Jenkins khi restart
+      - /var/run/docker.sock:/var/run/docker.sock # [Fix 2] Đường ống dẫn dầu giúp Jenkins ra lệnh cho Docker máy thật
 
 networks:
   default:
