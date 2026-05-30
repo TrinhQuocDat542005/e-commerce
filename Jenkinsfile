@@ -32,7 +32,7 @@ pipeline {
                 
                 // [Vá lỗi chốt hạ] Liệt kê đích danh mớ backend và DB, CHỪA THẰNG JENKINS RA nha ông!
                 sh '''
-                    docker compose up -d --build \
+                    docker compose up -d --build --force-recreate \
                     product-db order-db inventory-db \
                     discovery-server product-service order-service inventory-service api-gateway
                 '''
