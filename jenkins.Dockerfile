@@ -1,27 +1,20 @@
 FROM jenkins/jenkins:lts-jdk21
 USER root
 
-# 1. Cài đặt Docker CLI, git, curl, và các công cụ cần thiết
-RUN apt-get update && apt-get install -y \
-    docker.io \
-    git \
-    curl \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/* \
-    && git config --system --add safe.directory '*'
+# 1. Cài đặt Docker CLI cơ bản, curl và git
+RUN apt-get update && apt-get install -y docker.io curl git && \
+    git config --system --add safe.directory '*'
 
-# 2. Tải trực tiếp Docker Compose V2 chính chủ bỏ vào thư mục Plugin của Docker
+# 2. Tải trực tiếp Docker Compose V2 bỏ vào thư mục Plugin chính quy
 RUN mkdir -p /usr/local/lib/docker/cli-plugins && \
     curl -SL https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
-    docker-compose --version
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# 3. Cấu hình Jenkins plugins cơ bản (optional, nhưng giúp workflow tốt hơn)
-RUN jenkins-plugin-cli --plugins \
-    workflow-aggregator:590.v6a_d052e5a_ea_5 \
-    pipeline-model-definition:2.2176.v43ed4a_1829b_8 \
-    docker-plugin:1.5.1 \
-    git:5.2.2
+# 3. [Chiêu vá chốt hạ] Tạo lối tắt để gõ hệ có dấu gạch hay không dấu gạch đều nhận diện được
+RUN ln -f -s /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
 
-# Giữ quyền root tối cao để Jenkins điều khiển được máy thật
+# 4. Chạy lệnh nghiệm thu nội bộ xem hệ thống đã nhận súng đạn chưa
+RUN docker compose version
+RUN docker-compose --version
+
 USER root
