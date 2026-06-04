@@ -1,7 +1,7 @@
 FROM gradle:8.10-jdk21 AS builder
 WORKDIR /app
 COPY --chown=gradle:gradle . .
-RUN --mount=type=cache,target=/home/gradle/.gradle ./gradlew :inventory-service:bootJar -x test
+RUN ./gradlew :inventory-service:bootJar -x test
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

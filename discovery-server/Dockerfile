@@ -8,7 +8,7 @@ WORKDIR /app
 COPY --chown=gradle:gradle . .
 
 # Chỉ ra lệnh compile đúng module discovery-server, bỏ qua chạy test để tiết kiệm thời gian
-RUN --mount=type=cache,target=/home/gradle/.gradle ./gradlew :discovery-server:bootJar -x test
+RUN ./gradlew :discovery-server:bootJar -x test
 # ==========================================
 # STAGE 2: Môi trường chạy thực tế tối giản
 # ==========================================

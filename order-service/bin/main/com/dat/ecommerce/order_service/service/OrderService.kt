@@ -1,5 +1,7 @@
 package com.dat.ecommerce.order_service.service
 
+import org.springframework.kafka.core.KafkaTemplate
+import com.ecommerce.common.event.OrderPlacedEvent
 import com.dat.ecommerce.order_service.dto.InventoryResponse
 import com.dat.ecommerce.order_service.dto.OrderRequest
 import com.dat.ecommerce.order_service.model.Order
@@ -14,7 +16,8 @@ import java.util.*
 @Transactional
 class OrderService(
     private val orderRepository: OrderRepository,
-    private val webClient: WebClient // Inject WebClient thần thánh vào đây
+    private val webClient: WebClient,
+    private val KafkaTemplate: KafkaTemplate<String, OrderPlacedEvent> // Inject WebClient thần thánh vào đây
 ) {
 
     fun placeOrder(orderRequest: OrderRequest) {
@@ -56,4 +59,5 @@ class OrderService(
             throw IllegalArgumentException("Product is not in stock, please try again later")
         }
     }
+    
 }

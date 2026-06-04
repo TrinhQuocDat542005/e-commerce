@@ -1,21 +1,23 @@
 package com.dat.ecommerce.order_service.service
 
-import com.dat.ecommerce.order_service.dto.InventoryResponse
+import org.springframework.kafka.core.KafkaTemplate
+import com.ecommerce.common.event.OrderPlacedEvent // Đảm bảo import đúng gói này
 import com.dat.ecommerce.order_service.dto.OrderRequest
 import com.dat.ecommerce.order_service.model.Order
 import com.dat.ecommerce.order_service.model.OrderLineItems
 import com.dat.ecommerce.order_service.repository.OrderRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.reactive.function.client.WebClient
 import java.util.*
 
 @Service
 @Transactional
 class OrderService(
     private val orderRepository: OrderRepository,
-    private val webClient: WebClient // Inject WebClient thần thánh vào đây
+    private val kafkaTemplate: KafkaTemplate<String, OrderPlacedEvent> // Chỉ giữ lại KafkaTemplate
 ) {
+    private val log = LoggerFactory.getLogger(OrderService::class.java)
 
     fun placeOrder(orderRequest: OrderRequest) {
         val order = Order()
@@ -30,30 +32,22 @@ class OrderService(
         }
         order.orderLineItemsList = orderLineItems
 
-        // 1. Gom tất cả mã SKU từ đơn hàng của khách thành một danh sách List<String>
-        val skuCodes = order.orderLineItemsList.map { it.skuCode }
+        // 1. Lưu đơn hàng vào DB trước (không cần hỏi kho nữa)
+        orderRepository.save(order)
+        log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã lưu DB!")
 
-        // 2. Dùng WebClient bắn HTTP GET Request sang Inventory Service (Cổng 8083)
-        val inventoryResponseArray = webClient.get()
-            .uri("http://inventory-service:8083/api/inventory") { uriBuilder ->
-                uriBuilder.queryParam("skuCode", skuCodes).build()
-            }
-            
-            .retrieve()
-            .bodyToMono(Array<InventoryResponse>::class.java) // Hứng mớ JSON trả về ép thành mảng Object
-            .block() // Ép WebClient chạy đồng bộ (Synchronous) để đợi kết quả trả về rồi mới đi tiếp
+        // 2. Bắn sự kiện ra Kafka cho Inventory tự xử lý
+        val firstItem = order.orderLineItemsList.firstOrNull()
 
-        // 3. Kiểm tra xem TẤT CẢ các món hàng khách mua có đều còn hàng (isInStock == true) không
-        val allProductsInStock = inventoryResponseArray != null && 
-                inventoryResponseArray.isNotEmpty() &&
-                inventoryResponseArray.all { it.isInStock }
+        val orderPlacedEvent = OrderPlacedEvent(
+            orderNumber = order.orderNumber,
+            skuCode = firstItem?.skuCode ?: "UNKNOWN", // Nếu trống thì để mặc định
+            quantity = firstItem?.quantity ?: 0
+        )
 
-        // 4. Nếu đủ hàng thì chốt đơn lưu DB, nếu có thằng hết hàng thì quăng lỗi văng ra ngoài ngay!
-        if (allProductsInStock) {
-            orderRepository.save(order)
-            println(">> Order Placed Successfully!")
-        } else {
-            throw IllegalArgumentException("Product is not in stock, please try again later")
-        }
+        kafkaTemplate.send("order-placed-topic", orderPlacedEvent)
+        log.info("🚀 [Order Service] Đã bắn sự kiện lên Kafka!")
+        log.info("📢 Đang chuẩn bị bắn tin vào topic: order-placed-topic với nội dung: {}", orderPlacedEvent)
+kafkaTemplate.send("order-placed-topic", orderPlacedEvent)
     }
 }

@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/inventory")
 class InventoryController(private val inventoryService: InventoryService) {
 
-    // API mới gom đơn nhận parameter dạng mảng từ URL (?skuCode=...&skuCode=...)
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     fun isInStock(@RequestParam skuCode: List<String>): List<InventoryResponse> {

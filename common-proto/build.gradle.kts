@@ -5,7 +5,8 @@ plugins {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        // Dùng phương thức .set() kết hợp với JavaLanguageVersion.of()
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
