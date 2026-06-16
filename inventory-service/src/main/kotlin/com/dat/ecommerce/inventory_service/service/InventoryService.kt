@@ -1,17 +1,20 @@
 package com.dat.ecommerce.inventory_service.service
 
 import com.dat.ecommerce.inventory_service.dto.InventoryResponse
+import com.dat.ecommerce.inventory_service.model.OutboxEvent
 import com.dat.ecommerce.inventory_service.repository.InventoryRepository
+import com.dat.ecommerce.inventory_service.repository.OutboxRepository
+import com.ecommerce.common.event.InventoryResponseEvent
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import com.ecommerce.common.event.InventoryResponseEvent
-import org.springframework.kafka.core.KafkaTemplate
 
 @Service
 class InventoryService(
     private val inventoryRepository: InventoryRepository,
-    private val kafkaTemplate: KafkaTemplate<String, InventoryResponseEvent>
+    private val outboxRepository: OutboxRepository,
+    private val objectMapper: ObjectMapper
 ) {
 
     private val log = LoggerFactory.getLogger(InventoryService::class.java)
@@ -35,7 +38,7 @@ class InventoryService(
         // 1. Tìm sản phẩm trong DB bằng skuCode
         val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
         
-        if (inventoryOptional.isPresent) {
+        val inventoryResponseEvent = if (inventoryOptional.isPresent) {
             val inventory = inventoryOptional.get()
             
             // 2. Kiểm tra xem số lượng hàng trong kho có đủ đáp ứng không
@@ -47,19 +50,28 @@ class InventoryService(
                 inventoryRepository.save(inventory)
                 log.info("✅ [Inventory Service] Trừ kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
                 
-                // Bắn phản hồi THÀNH CÔNG về Kafka
-                kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, true))
+                InventoryResponseEvent(orderNumber, true)
             } else {
                 log.error("❌ [Inventory Service] Thất bại: Số lượng hàng trong kho không đủ cho SKU: $skuCode (Hiện có: ${inventory.quantity}, Yêu cầu: $quantity)")
                 
-                // Bắn phản hồi THẤT BẠI (Hết hàng) về Kafka
-                kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, false, "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)"))
+                InventoryResponseEvent(orderNumber, false, "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)")
             }
         } else {
             log.error("❌ [Inventory Service] Thất bại: Không tìm thấy mã SKU [$skuCode] trong Database!")
             
-            // Bắn phản hồi THẤT BẠI (Không tìm thấy sản phẩm) về Kafka
-            kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, false, "SKU not found"))
+            InventoryResponseEvent(orderNumber, false, "SKU not found")
         }
+
+        // 4. Lưu phản hồi vào Outbox table trong cùng transaction
+        val payloadJson = objectMapper.writeValueAsString(inventoryResponseEvent)
+        val outboxEvent = OutboxEvent(
+            aggregateType = "ORDER",
+            aggregateId = orderNumber,
+            eventType = "InventoryResponse",
+            payload = payloadJson,
+            status = "PENDING"
+        )
+        outboxRepository.save(outboxEvent)
+        log.info("💾 [Inventory Service] Đã ghi nhận OutboxEvent phản hồi cho đơn hàng $orderNumber!")
     }
 }
