@@ -17,6 +17,6 @@ class InventoryConsumer(private val inventoryService: InventoryService) { // Đ�
         log.info("📦 Chi tiết đơn hàng: Mã Đơn = ${event.orderNumber}, SKU = ${event.skuCode}, Số lượng = ${event.quantity}")
         
         // Gọi service xuống DB trừ kho luôn!
-        inventoryService.decreaseStock(event.skuCode, event.quantity)
+        inventoryService.decreaseStock(event.orderNumber, event.skuCode, event.quantity)
     }
 }
