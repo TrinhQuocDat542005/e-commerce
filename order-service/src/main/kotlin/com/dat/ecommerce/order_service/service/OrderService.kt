@@ -32,22 +32,22 @@ class OrderService(
         }
         order.orderLineItemsList = orderLineItems
 
-        // 1. Lưu đơn hàng vào DB trước (không cần hỏi kho nữa)
+    // 1. Lưu đơn hàng vào DB trước
         orderRepository.save(order)
         log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã lưu DB!")
 
-        // 2. Bắn sự kiện ra Kafka cho Inventory tự xử lý
-        val firstItem = order.orderLineItemsList.firstOrNull()
+    // 2. Bóc trực tiếp từ request payload đầu vào để né lỗi Null Entity ngầm
+        val firstRequestDto = orderRequest.orderLineItemsDtoList.firstOrNull()
 
         val orderPlacedEvent = OrderPlacedEvent(
             orderNumber = order.orderNumber,
-            skuCode = firstItem?.skuCode ?: "UNKNOWN", // Nếu trống thì để mặc định
-            quantity = firstItem?.quantity ?: 0
+            skuCode = firstRequestDto?.skuCode ?: "UNKNOWN", 
+            quantity = firstRequestDto?.quantity ?: 0
         )
 
+    // Bắn duy nhất 1 lần lên Kafka (Tôi thấy code cũ của ông bị trùng lặp gõ 2 dòng send)
         kafkaTemplate.send("order-placed-topic", orderPlacedEvent)
         log.info("🚀 [Order Service] Đã bắn sự kiện lên Kafka!")
-        log.info("📢 Đang chuẩn bị bắn tin vào topic: order-placed-topic với nội dung: {}", orderPlacedEvent)
-kafkaTemplate.send("order-placed-topic", orderPlacedEvent)
+        log.info("📢 Nội dung sự kiện bay đi: OrderPlacedEvent(orderNumber=${orderPlacedEvent.orderNumber}, skuCode=${orderPlacedEvent.skuCode}, quantity=${orderPlacedEvent.quantity})")
     }
 }
