@@ -5,9 +5,14 @@ import com.dat.ecommerce.inventory_service.repository.InventoryRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import com.ecommerce.common.event.InventoryResponseEvent
+import org.springframework.kafka.core.KafkaTemplate
 
 @Service
-class InventoryService(private val inventoryRepository: InventoryRepository) {
+class InventoryService(
+    private val inventoryRepository: InventoryRepository,
+    private val kafkaTemplate: KafkaTemplate<String, InventoryResponseEvent>
+) {
 
     private val log = LoggerFactory.getLogger(InventoryService::class.java)
 
@@ -24,10 +29,10 @@ class InventoryService(private val inventoryRepository: InventoryRepository) {
 
     // --- BỔ SUNG THÊM: Hàm xử lý trừ kho ngầm nhận lệnh từ Kafka ---
     @Transactional
-    fun decreaseStock(skuCode: String, quantity: Int) {
-        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho SKU: $skuCode, Số lượng mua: $quantity")
+    fun decreaseStock(orderNumber: String, skuCode: String, quantity: Int) {
+        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho SKU: $skuCode, Số lượng mua: $quantity, Đơn hàng: $orderNumber")
         
-        // 1. Tìm sản phẩm trong DB bằng skuCode thông qua Repository ông vừa viết ở Bước 1
+        // 1. Tìm sản phẩm trong DB bằng skuCode
         val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
         
         if (inventoryOptional.isPresent) {
@@ -41,12 +46,20 @@ class InventoryService(private val inventoryRepository: InventoryRepository) {
                 // 3. Cập nhật xuống Database PostgreSQL
                 inventoryRepository.save(inventory)
                 log.info("✅ [Inventory Service] Trừ kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
+                
+                // Bắn phản hồi THÀNH CÔNG về Kafka
+                kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, true))
             } else {
                 log.error("❌ [Inventory Service] Thất bại: Số lượng hàng trong kho không đủ cho SKU: $skuCode (Hiện có: ${inventory.quantity}, Yêu cầu: $quantity)")
-                // Sau này sẽ bắn OutOfStockEvent lên Kafka phục vụ Saga Pattern ở đây
+                
+                // Bắn phản hồi THẤT BẠI (Hết hàng) về Kafka
+                kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, false, "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)"))
             }
         } else {
             log.error("❌ [Inventory Service] Thất bại: Không tìm thấy mã SKU [$skuCode] trong Database!")
+            
+            // Bắn phản hồi THẤT BẠI (Không tìm thấy sản phẩm) về Kafka
+            kafkaTemplate.send("inventory-response-topic", InventoryResponseEvent(orderNumber, false, "SKU not found"))
         }
     }
 }

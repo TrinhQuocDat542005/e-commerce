@@ -9,6 +9,7 @@ data class Order(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
     var orderNumber: String = "",
+    var status: String = "PENDING",
     
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")

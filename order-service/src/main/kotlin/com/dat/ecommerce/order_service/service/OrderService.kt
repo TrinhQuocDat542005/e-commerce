@@ -22,6 +22,7 @@ class OrderService(
     fun placeOrder(orderRequest: OrderRequest) {
         val order = Order()
         order.orderNumber = UUID.randomUUID().toString()
+        order.status = "PENDING"
 
         val orderLineItems = orderRequest.orderLineItemsDtoList.map { dto ->
             OrderLineItems(
