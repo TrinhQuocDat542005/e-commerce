@@ -1,11 +1,13 @@
 package com.dat.ecommerce.order_service.service
 
-import org.springframework.kafka.core.KafkaTemplate
-import com.ecommerce.common.event.OrderPlacedEvent // Đảm bảo import đúng gói này
+import com.ecommerce.common.event.OrderPlacedEvent
 import com.dat.ecommerce.order_service.dto.OrderRequest
 import com.dat.ecommerce.order_service.model.Order
 import com.dat.ecommerce.order_service.model.OrderLineItems
+import com.dat.ecommerce.order_service.model.OutboxEvent
 import com.dat.ecommerce.order_service.repository.OrderRepository
+import com.dat.ecommerce.order_service.repository.OutboxRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -15,7 +17,8 @@ import java.util.*
 @Transactional
 class OrderService(
     private val orderRepository: OrderRepository,
-    private val kafkaTemplate: KafkaTemplate<String, OrderPlacedEvent> // Chỉ giữ lại KafkaTemplate
+    private val outboxRepository: OutboxRepository,
+    private val objectMapper: ObjectMapper
 ) {
     private val log = LoggerFactory.getLogger(OrderService::class.java)
 
@@ -33,11 +36,11 @@ class OrderService(
         }
         order.orderLineItemsList = orderLineItems
 
-    // 1. Lưu đơn hàng vào DB trước
+        // 1. Lưu đơn hàng vào DB trước
         orderRepository.save(order)
         log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã lưu DB!")
 
-    // 2. Bóc trực tiếp từ request payload đầu vào để né lỗi Null Entity ngầm
+        // 2. Tạo nội dung sự kiện OrderPlacedEvent
         val firstRequestDto = orderRequest.orderLineItemsDtoList.firstOrNull()
 
         val orderPlacedEvent = OrderPlacedEvent(
@@ -46,9 +49,16 @@ class OrderService(
             quantity = firstRequestDto?.quantity ?: 0
         )
 
-    // Bắn duy nhất 1 lần lên Kafka (Tôi thấy code cũ của ông bị trùng lặp gõ 2 dòng send)
-        kafkaTemplate.send("order-placed-topic", orderPlacedEvent)
-        log.info("🚀 [Order Service] Đã bắn sự kiện lên Kafka!")
-        log.info("📢 Nội dung sự kiện bay đi: OrderPlacedEvent(orderNumber=${orderPlacedEvent.orderNumber}, skuCode=${orderPlacedEvent.skuCode}, quantity=${orderPlacedEvent.quantity})")
+        // 3. Serialize event sang JSON và lưu vào Outbox table trong cùng transaction
+        val payloadJson = objectMapper.writeValueAsString(orderPlacedEvent)
+        val outboxEvent = OutboxEvent(
+            aggregateType = "ORDER",
+            aggregateId = order.orderNumber,
+            eventType = "OrderPlaced",
+            payload = payloadJson,
+            status = "PENDING"
+        )
+        outboxRepository.save(outboxEvent)
+        log.info("💾 [Order Service] Đã ghi nhận OutboxEvent cho đơn hàng ${order.orderNumber}!")
     }
 }
