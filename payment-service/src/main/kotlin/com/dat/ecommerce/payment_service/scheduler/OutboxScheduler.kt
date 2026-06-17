@@ -10,14 +10,44 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import io.micrometer.tracing.Tracer
 
 @Component
 class OutboxScheduler(
     private val outboxRepository: OutboxRepository,
     private val kafkaTemplate: KafkaTemplate<String, Any>,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val tracer: Tracer
 ) {
     private val log = LoggerFactory.getLogger(OutboxScheduler::class.java)
+
+    private fun <T> runInTraceContext(traceHeadersJson: String?, spanName: String, block: () -> T): T {
+        val headersMap = if (!traceHeadersJson.isNullOrBlank()) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                objectMapper.readValue(traceHeadersJson, Map::class.java) as? Map<String, String>
+            } catch (e: Exception) {
+                log.error("Failed to parse trace headers", e)
+                null
+            }
+        } else null
+
+        if (headersMap != null) {
+            val context = tracer.propagation().extractor { carrier: Map<String, String>, key: String ->
+                carrier[key]
+            }.extract(headersMap)
+            val span = tracer.nextSpan(context).name(spanName).start()
+            try {
+                return tracer.withSpan(span).use {
+                    block()
+                }
+            } finally {
+                span.end()
+            }
+        } else {
+            return block()
+        }
+    }
 
     @Scheduled(fixedDelay = 5000)
     @Transactional
@@ -33,7 +63,9 @@ class OutboxScheduler(
                     val paymentResponseEvent = objectMapper.readValue(event.payload, PaymentResponseEvent::class.java)
                     
                     // Publish to Kafka synchronously
-                    kafkaTemplate.send("payment-response-topic", paymentResponseEvent.orderNumber, paymentResponseEvent).get()
+                    runInTraceContext(event.traceHeaders, "relay-payment-response") {
+                        kafkaTemplate.send("payment-response-topic", paymentResponseEvent.orderNumber, paymentResponseEvent).get()
+                    }
                     
                     // Mark as processed
                     event.status = "PROCESSED"

@@ -28,5 +28,8 @@ data class OutboxEvent(
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
+    @Column(columnDefinition = "TEXT")
+    var traceHeaders: String? = null,
+
     var processedAt: LocalDateTime? = null
 )
