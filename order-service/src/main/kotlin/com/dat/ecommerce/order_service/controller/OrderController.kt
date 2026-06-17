@@ -15,4 +15,11 @@ class OrderController(private val orderService: OrderService) {
         orderService.placeOrder(orderRequest)
         return "Order Placed Successfully"
     }
+
+    @PutMapping("/cancel/{orderNumber}")
+    @ResponseStatus(HttpStatus.OK)
+    fun cancelOrder(@PathVariable("orderNumber") orderNumber: String): String {
+        orderService.cancelOrder(orderNumber)
+        return "Order Cancelled Successfully"
+    }
 }

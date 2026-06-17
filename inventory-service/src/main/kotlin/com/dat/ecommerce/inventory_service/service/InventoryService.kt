@@ -74,4 +74,19 @@ class InventoryService(
         outboxRepository.save(outboxEvent)
         log.info("💾 [Inventory Service] Đã ghi nhận OutboxEvent phản hồi cho đơn hàng $orderNumber!")
     }
+
+    @Transactional
+    fun increaseStock(orderNumber: String, skuCode: String, quantity: Int) {
+        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý hoàn kho cho SKU: $skuCode, Số lượng: $quantity, Đơn hàng: $orderNumber")
+        val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
+        if (inventoryOptional.isPresent) {
+            val inventory = inventoryOptional.get()
+            val oldStock = inventory.quantity
+            inventory.quantity = oldStock + quantity
+            inventoryRepository.save(inventory)
+            log.info("✅ [Inventory Service] Hoàn kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
+        } else {
+            log.error("❌ [Inventory Service] Thất bại hoàn kho: Không tìm thấy mã SKU [$skuCode] trong Database!")
+        }
+    }
 }

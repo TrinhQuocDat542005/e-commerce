@@ -1,6 +1,7 @@
 package com.dat.ecommerce.order_service.scheduler
 
 import com.ecommerce.common.event.OrderPlacedEvent
+import com.ecommerce.common.event.OrderCancelledEvent
 import com.dat.ecommerce.order_service.model.OutboxEvent
 import com.dat.ecommerce.order_service.repository.OutboxRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -14,7 +15,7 @@ import java.time.LocalDateTime
 @Component
 class OutboxScheduler(
     private val outboxRepository: OutboxRepository,
-    private val kafkaTemplate: KafkaTemplate<String, OrderPlacedEvent>,
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
     private val objectMapper: ObjectMapper
 ) {
     private val log = LoggerFactory.getLogger(OutboxScheduler::class.java)
@@ -41,6 +42,18 @@ class OutboxScheduler(
                     outboxRepository.save(event)
                     
                     log.info("✅ Successfully relayed Outbox Event ID: ${event.id} for Order: ${event.aggregateId}")
+                } else if (event.eventType == "OrderCancelled") {
+                    val orderCancelledEvent = objectMapper.readValue(event.payload, OrderCancelledEvent::class.java)
+                    
+                    // Publish to Kafka synchronously
+                    kafkaTemplate.send("order-cancelled-topic", orderCancelledEvent.orderNumber, orderCancelledEvent).get()
+                    
+                    // Mark as processed
+                    event.status = "PROCESSED"
+                    event.processedAt = LocalDateTime.now()
+                    outboxRepository.save(event)
+                    
+                    log.info("✅ Successfully relayed OrderCancelled Event ID: ${event.id} for Order: ${event.aggregateId}")
                 }
             } catch (e: Exception) {
                 log.error("❌ Failed to relay Outbox Event ID: ${event.id} to Kafka. Reason: ${e.message}", e)

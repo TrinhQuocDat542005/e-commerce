@@ -1,6 +1,7 @@
 package com.dat.ecommerce.order_service.service
 
 import com.ecommerce.common.event.OrderPlacedEvent
+import com.ecommerce.common.event.OrderCancelledEvent
 import com.dat.ecommerce.order_service.dto.OrderRequest
 import com.dat.ecommerce.order_service.model.Order
 import com.dat.ecommerce.order_service.model.OrderLineItems
@@ -60,5 +61,39 @@ class OrderService(
         )
         outboxRepository.save(outboxEvent)
         log.info("💾 [Order Service] Đã ghi nhận OutboxEvent cho đơn hàng ${order.orderNumber}!")
+    }
+
+    fun cancelOrder(orderNumber: String) {
+        val orderOptional = orderRepository.findByOrderNumber(orderNumber)
+        if (orderOptional.isPresent) {
+            val order = orderOptional.get()
+            if (order.status != "CONFIRMED") {
+                throw IllegalArgumentException("Cannot cancel order with status: ${order.status}. Only CONFIRMED orders can be cancelled.")
+            }
+            order.status = "CANCELLED"
+            orderRepository.save(order)
+            log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã cập nhật trạng thái CANCELLED!")
+
+            // Lưu OutboxEvent cho từng item trong đơn hàng để hoàn trả kho
+            for (item in order.orderLineItemsList) {
+                val orderCancelledEvent = OrderCancelledEvent(
+                    orderNumber = order.orderNumber,
+                    skuCode = item.skuCode,
+                    quantity = item.quantity
+                )
+                val payloadJson = objectMapper.writeValueAsString(orderCancelledEvent)
+                val outboxEvent = OutboxEvent(
+                    aggregateType = "ORDER",
+                    aggregateId = order.orderNumber,
+                    eventType = "OrderCancelled",
+                    payload = payloadJson,
+                    status = "PENDING"
+                )
+                outboxRepository.save(outboxEvent)
+            }
+            log.info("💾 [Order Service] Đã ghi nhận OutboxEvent hủy hàng cho đơn hàng ${order.orderNumber}!")
+        } else {
+            throw IllegalArgumentException("Order not found with order number: $orderNumber")
+        }
     }
 }
