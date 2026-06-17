@@ -2,6 +2,9 @@ package com.dat.ecommerce.order_service.service
 
 import com.ecommerce.common.event.OrderPlacedEvent
 import com.ecommerce.common.event.OrderCancelledEvent
+import com.ecommerce.common.proto.ProductPriceRequest
+import com.ecommerce.common.proto.ProductServiceGrpc
+import net.devh.boot.grpc.client.inject.GrpcClient
 import com.dat.ecommerce.order_service.dto.OrderRequest
 import com.dat.ecommerce.order_service.model.Order
 import com.dat.ecommerce.order_service.model.OrderLineItems
@@ -23,15 +26,27 @@ class OrderService(
 ) {
     private val log = LoggerFactory.getLogger(OrderService::class.java)
 
+    @GrpcClient("product-service")
+    private lateinit var productServiceStub: ProductServiceGrpc.ProductServiceBlockingStub
+
     fun placeOrder(orderRequest: OrderRequest) {
         val order = Order()
         order.orderNumber = UUID.randomUUID().toString()
         order.status = "PENDING"
 
         val orderLineItems = orderRequest.orderLineItemsDtoList.map { dto ->
+            val grpcRequest = ProductPriceRequest.newBuilder()
+                .setSkuCode(dto.skuCode)
+                .build()
+            val grpcResponse = productServiceStub.getProductPriceBySku(grpcRequest)
+            if (!grpcResponse.exists) {
+                throw IllegalArgumentException("Product with SKU ${dto.skuCode} does not exist in catalog!")
+            }
+            val authenticPrice = java.math.BigDecimal.valueOf(grpcResponse.price)
+            log.info("🎯 [Order Service] Đã xác thực giá qua gRPC cho ${dto.skuCode}: Giá niêm yết = $authenticPrice (Client gửi = ${dto.price})")
             OrderLineItems(
                 skuCode = dto.skuCode,
-                price = dto.price,
+                price = authenticPrice,
                 quantity = dto.quantity
             )
         }
@@ -42,12 +57,13 @@ class OrderService(
         log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã lưu DB!")
 
         // 2. Tạo nội dung sự kiện OrderPlacedEvent
-        val firstRequestDto = orderRequest.orderLineItemsDtoList.firstOrNull()
+        val firstItem = orderLineItems.firstOrNull()
 
         val orderPlacedEvent = OrderPlacedEvent(
             orderNumber = order.orderNumber,
-            skuCode = firstRequestDto?.skuCode ?: "UNKNOWN", 
-            quantity = firstRequestDto?.quantity ?: 0
+            skuCode = firstItem?.skuCode ?: "UNKNOWN", 
+            quantity = firstItem?.quantity ?: 0,
+            price = firstItem?.price?.toDouble() ?: 0.0
         )
 
         // 3. Serialize event sang JSON và lưu vào Outbox table trong cùng transaction

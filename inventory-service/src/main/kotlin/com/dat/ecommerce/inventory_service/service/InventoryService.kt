@@ -33,8 +33,8 @@ class InventoryService(
 
     // --- BỔ SUNG THÊM: Hàm xử lý trừ kho ngầm nhận lệnh từ Kafka ---
     @Transactional
-    fun decreaseStock(orderNumber: String, skuCode: String, quantity: Int) {
-        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho SKU: $skuCode, Số lượng mua: $quantity, Đơn hàng: $orderNumber")
+    fun decreaseStock(orderNumber: String, skuCode: String, quantity: Int, price: Double) {
+        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho SKU: $skuCode, Số lượng mua: $quantity, Giá: $price, Đơn hàng: $orderNumber")
         
         // 1. Tìm sản phẩm trong DB bằng skuCode
         val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
@@ -51,16 +51,37 @@ class InventoryService(
                 inventoryRepository.save(inventory)
                 log.info("✅ [Inventory Service] Trừ kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
                 
-                InventoryResponseEvent(orderNumber, true)
+                InventoryResponseEvent(
+                    orderNumber = orderNumber,
+                    isSuccess = true,
+                    reason = null,
+                    skuCode = skuCode,
+                    quantity = quantity,
+                    price = price
+                )
             } else {
                 log.error("❌ [Inventory Service] Thất bại: Số lượng hàng trong kho không đủ cho SKU: $skuCode (Hiện có: ${inventory.quantity}, Yêu cầu: $quantity)")
                 
-                InventoryResponseEvent(orderNumber, false, "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)")
+                InventoryResponseEvent(
+                    orderNumber = orderNumber,
+                    isSuccess = false,
+                    reason = "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)",
+                    skuCode = skuCode,
+                    quantity = quantity,
+                    price = price
+                )
             }
         } else {
             log.error("❌ [Inventory Service] Thất bại: Không tìm thấy mã SKU [$skuCode] trong Database!")
             
-            InventoryResponseEvent(orderNumber, false, "SKU not found")
+            InventoryResponseEvent(
+                orderNumber = orderNumber,
+                isSuccess = false,
+                reason = "SKU not found",
+                skuCode = skuCode,
+                quantity = quantity,
+                price = price
+            )
         }
 
         // 4. Lưu phản hồi vào Outbox table trong cùng transaction
