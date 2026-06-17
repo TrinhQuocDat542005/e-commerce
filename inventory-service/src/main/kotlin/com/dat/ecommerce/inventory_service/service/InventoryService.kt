@@ -6,6 +6,7 @@ import com.dat.ecommerce.inventory_service.model.OutboxEvent
 import com.dat.ecommerce.inventory_service.repository.InventoryRepository
 import com.dat.ecommerce.inventory_service.repository.OutboxRepository
 import com.ecommerce.common.event.InventoryResponseEvent
+import com.ecommerce.common.event.OrderItemEvent
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -33,58 +34,54 @@ class InventoryService(
 
     // --- BỔ SUNG THÊM: Hàm xử lý trừ kho ngầm nhận lệnh từ Kafka ---
     @Transactional
-    fun decreaseStock(orderNumber: String, skuCode: String, quantity: Int, price: Double) {
-        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho SKU: $skuCode, Số lượng mua: $quantity, Giá: $price, Đơn hàng: $orderNumber")
+    fun decreaseStock(orderNumber: String, items: List<OrderItemEvent>) {
+        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý trừ kho ngầm cho Đơn hàng: $orderNumber, Số mặt hàng: ${items.size}")
         
-        // 1. Tìm sản phẩm trong DB bằng skuCode
-        val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
+        val inventories = mutableListOf<Inventory>()
+        var isSuccess = true
+        var failureReason: String? = null
         
-        val inventoryResponseEvent = if (inventoryOptional.isPresent) {
-            val inventory = inventoryOptional.get()
-            
-            // 2. Kiểm tra xem số lượng hàng trong kho có đủ đáp ứng không
-            if (inventory.quantity >= quantity) {
-                val oldStock = inventory.quantity
-                inventory.quantity = oldStock - quantity // Trừ số lượng thực tế
-                
-                // 3. Cập nhật xuống Database PostgreSQL
-                inventoryRepository.save(inventory)
-                log.info("✅ [Inventory Service] Trừ kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
-                
-                InventoryResponseEvent(
-                    orderNumber = orderNumber,
-                    isSuccess = true,
-                    reason = null,
-                    skuCode = skuCode,
-                    quantity = quantity,
-                    price = price
-                )
+        // 1. Kiểm tra toàn bộ danh mục sản phẩm trước
+        for (item in items) {
+            val inventoryOptional = inventoryRepository.findBySkuCode(item.skuCode)
+            if (inventoryOptional.isPresent) {
+                val inventory = inventoryOptional.get()
+                if (inventory.quantity >= item.quantity) {
+                    inventories.add(inventory)
+                } else {
+                    isSuccess = false
+                    failureReason = "Out of stock for SKU: ${item.skuCode} (Available: ${inventory.quantity}, Requested: ${item.quantity})"
+                    break
+                }
             } else {
-                log.error("❌ [Inventory Service] Thất bại: Số lượng hàng trong kho không đủ cho SKU: $skuCode (Hiện có: ${inventory.quantity}, Yêu cầu: $quantity)")
-                
-                InventoryResponseEvent(
-                    orderNumber = orderNumber,
-                    isSuccess = false,
-                    reason = "Out of stock (Available: ${inventory.quantity}, Requested: $quantity)",
-                    skuCode = skuCode,
-                    quantity = quantity,
-                    price = price
-                )
+                isSuccess = false
+                failureReason = "SKU not found: ${item.skuCode}"
+                break
+            }
+        }
+        
+        // 2. Thực hiện trừ kho nếu tất cả đều hợp lệ
+        if (isSuccess) {
+            for (i in 0 until items.size) {
+                val item = items[i]
+                val inventory = inventories[i]
+                val oldStock = inventory.quantity
+                inventory.quantity = oldStock - item.quantity
+                inventoryRepository.save(inventory)
+                log.info("✅ [Inventory Service] Trừ kho THÀNH CÔNG! Sản phẩm [${item.skuCode}]: $oldStock -> ${inventory.quantity}")
             }
         } else {
-            log.error("❌ [Inventory Service] Thất bại: Không tìm thấy mã SKU [$skuCode] trong Database!")
-            
-            InventoryResponseEvent(
-                orderNumber = orderNumber,
-                isSuccess = false,
-                reason = "SKU not found",
-                skuCode = skuCode,
-                quantity = quantity,
-                price = price
-            )
+            log.error("❌ [Inventory Service] Trừ kho THẤT BẠI cho đơn hàng $orderNumber: $failureReason")
         }
-
-        // 4. Lưu phản hồi vào Outbox table trong cùng transaction
+        
+        // 3. Ghi OutboxEvent phản hồi vào Outbox table
+        val inventoryResponseEvent = InventoryResponseEvent(
+            orderNumber = orderNumber,
+            isSuccess = isSuccess,
+            reason = failureReason,
+            items = items
+        )
+        
         val payloadJson = objectMapper.writeValueAsString(inventoryResponseEvent)
         val outboxEvent = OutboxEvent(
             aggregateType = "ORDER",
@@ -98,17 +95,19 @@ class InventoryService(
     }
 
     @Transactional
-    fun increaseStock(orderNumber: String, skuCode: String, quantity: Int) {
-        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý hoàn kho cho SKU: $skuCode, Số lượng: $quantity, Đơn hàng: $orderNumber")
-        val inventoryOptional = inventoryRepository.findBySkuCode(skuCode)
-        if (inventoryOptional.isPresent) {
-            val inventory = inventoryOptional.get()
-            val oldStock = inventory.quantity
-            inventory.quantity = oldStock + quantity
-            inventoryRepository.save(inventory)
-            log.info("✅ [Inventory Service] Hoàn kho THÀNH CÔNG! Sản phẩm [$skuCode]: $oldStock -> ${inventory.quantity}")
-        } else {
-            log.error("❌ [Inventory Service] Thất bại hoàn kho: Không tìm thấy mã SKU [$skuCode] trong Database!")
+    fun increaseStock(orderNumber: String, items: List<OrderItemEvent>) {
+        log.info("⚙️ [Inventory Service] Đang tiến hành xử lý hoàn kho cho Đơn hàng: $orderNumber, Số mặt hàng: ${items.size}")
+        for (item in items) {
+            val inventoryOptional = inventoryRepository.findBySkuCode(item.skuCode)
+            if (inventoryOptional.isPresent) {
+                val inventory = inventoryOptional.get()
+                val oldStock = inventory.quantity
+                inventory.quantity = oldStock + item.quantity
+                inventoryRepository.save(inventory)
+                log.info("✅ [Inventory Service] Hoàn kho THÀNH CÔNG! Sản phẩm [${item.skuCode}]: $oldStock -> ${inventory.quantity}")
+            } else {
+                log.error("❌ [Inventory Service] Thất bại hoàn kho: Không tìm thấy mã SKU [${item.skuCode}] trong Database!")
+            }
         }
     }
 
