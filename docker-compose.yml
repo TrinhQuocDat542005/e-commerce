@@ -258,6 +258,26 @@ services:
     networks:
       - ecommerce-network
 
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: notification-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    depends_on:
+      discovery-server:
+        condition: service_started
+      kafka:
+        condition: service_started
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin-server:9411/api/v2/spans
+    networks:
+      - ecommerce-network
+
   # ==========================================================
   # API GATEWAY
   # ==========================================================
@@ -276,6 +296,7 @@ services:
       - order-service
       - inventory-service
       - auth-service
+      - notification-service
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin-server:9411/api/v2/spans

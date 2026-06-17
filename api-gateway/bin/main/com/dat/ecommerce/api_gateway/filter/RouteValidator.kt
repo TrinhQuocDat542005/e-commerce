@@ -12,6 +12,7 @@ class RouteValidator {
             "/api/auth/register",
             "/api/auth/login",
             "/api/auth/validate",
+            "/api/notifications/stream",
             "/eureka"
         )
     }

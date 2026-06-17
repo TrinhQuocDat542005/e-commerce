@@ -17,16 +17,15 @@ class PaymentConsumer(private val paymentService: PaymentService) {
         log.info("📩 [Payment Service] Nhận được kết quả xử lý kho cho Đơn hàng: ${event.orderNumber}")
         
         if (event.isSuccess) {
-            val skuCode = event.skuCode
-            val quantity = event.quantity
-            val price = event.price
-            
-            if (skuCode != null && quantity != null && price != null) {
-                val totalPrice = BigDecimal.valueOf(price).multiply(BigDecimal.valueOf(quantity.toLong()))
+            val items = event.items
+            if (items.isNotEmpty()) {
+                val totalPrice = items.fold(BigDecimal.ZERO) { acc, item ->
+                    acc.add(BigDecimal.valueOf(item.price).multiply(BigDecimal.valueOf(item.quantity.toLong())))
+                }
                 // Luôn thanh toán cho tài khoản testuser
-                paymentService.deductBalance(event.orderNumber, "testuser", totalPrice, skuCode, quantity)
+                paymentService.deductBalance(event.orderNumber, "testuser", totalPrice, items)
             } else {
-                log.error("❌ [Payment Service] Thiếu thông tin skuCode, quantity hoặc price trong InventoryResponseEvent để tiến hành thanh toán!")
+                log.error("❌ [Payment Service] Danh sách sản phẩm trong InventoryResponseEvent bị trống!")
             }
         } else {
             log.info("ℹ️ [Payment Service] Kho hàng báo thất bại cho Đơn hàng ${event.orderNumber}. Không cần xử lý thanh toán.")

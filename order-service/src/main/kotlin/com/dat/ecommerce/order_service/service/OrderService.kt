@@ -2,6 +2,7 @@ package com.dat.ecommerce.order_service.service
 
 import com.ecommerce.common.event.OrderPlacedEvent
 import com.ecommerce.common.event.OrderCancelledEvent
+import com.ecommerce.common.event.OrderItemEvent
 import com.ecommerce.common.proto.ProductPriceRequest
 import com.ecommerce.common.proto.ProductServiceGrpc
 import net.devh.boot.grpc.client.inject.GrpcClient
@@ -57,13 +58,15 @@ class OrderService(
         log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã lưu DB!")
 
         // 2. Tạo nội dung sự kiện OrderPlacedEvent
-        val firstItem = orderLineItems.firstOrNull()
-
         val orderPlacedEvent = OrderPlacedEvent(
             orderNumber = order.orderNumber,
-            skuCode = firstItem?.skuCode ?: "UNKNOWN", 
-            quantity = firstItem?.quantity ?: 0,
-            price = firstItem?.price?.toDouble() ?: 0.0
+            items = orderLineItems.map { item ->
+                OrderItemEvent(
+                    skuCode = item.skuCode,
+                    quantity = item.quantity,
+                    price = item.price.toDouble()
+                )
+            }
         )
 
         // 3. Serialize event sang JSON và lưu vào Outbox table trong cùng transaction
@@ -90,23 +93,26 @@ class OrderService(
             orderRepository.save(order)
             log.info("✅ [Order Service] Đơn hàng ${order.orderNumber} đã cập nhật trạng thái CANCELLED!")
 
-            // Lưu OutboxEvent cho từng item trong đơn hàng để hoàn trả kho
-            for (item in order.orderLineItemsList) {
-                val orderCancelledEvent = OrderCancelledEvent(
-                    orderNumber = order.orderNumber,
-                    skuCode = item.skuCode,
-                    quantity = item.quantity
-                )
-                val payloadJson = objectMapper.writeValueAsString(orderCancelledEvent)
-                val outboxEvent = OutboxEvent(
-                    aggregateType = "ORDER",
-                    aggregateId = order.orderNumber,
-                    eventType = "OrderCancelled",
-                    payload = payloadJson,
-                    status = "PENDING"
-                )
-                outboxRepository.save(outboxEvent)
-            }
+            // Lưu một OutboxEvent duy nhất chứa toàn bộ sản phẩm cần hoàn trả kho
+            val orderCancelledEvent = OrderCancelledEvent(
+                orderNumber = order.orderNumber,
+                items = order.orderLineItemsList.map { item ->
+                    OrderItemEvent(
+                        skuCode = item.skuCode,
+                        quantity = item.quantity,
+                        price = item.price.toDouble()
+                    )
+                }
+            )
+            val payloadJson = objectMapper.writeValueAsString(orderCancelledEvent)
+            val outboxEvent = OutboxEvent(
+                aggregateType = "ORDER",
+                aggregateId = order.orderNumber,
+                eventType = "OrderCancelled",
+                payload = payloadJson,
+                status = "PENDING"
+            )
+            outboxRepository.save(outboxEvent)
             log.info("💾 [Order Service] Đã ghi nhận OutboxEvent hủy hàng cho đơn hàng ${order.orderNumber}!")
         } else {
             throw IllegalArgumentException("Order not found with order number: $orderNumber")

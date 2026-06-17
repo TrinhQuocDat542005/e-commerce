@@ -5,6 +5,7 @@ import com.dat.ecommerce.payment_service.model.OutboxEvent
 import com.dat.ecommerce.payment_service.repository.WalletRepository
 import com.dat.ecommerce.payment_service.repository.OutboxRepository
 import com.ecommerce.common.event.PaymentResponseEvent
+import com.ecommerce.common.event.OrderItemEvent
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -24,8 +25,7 @@ class PaymentService(
         orderNumber: String,
         username: String,
         amount: BigDecimal,
-        skuCode: String?,
-        quantity: Int?
+        items: List<OrderItemEvent>
     ) {
         log.info("⚙️ [Payment Service] Đang tiến hành thanh toán cho Đơn hàng: $orderNumber, Tài khoản: $username, Số tiền: $$amount")
 
@@ -47,8 +47,7 @@ class PaymentService(
                 orderNumber = orderNumber,
                 isSuccess = true,
                 reason = null,
-                skuCode = skuCode,
-                quantity = quantity
+                items = items
             )
         } else {
             log.error("❌ [Payment Service] Thất bại: Số dư tài khoản không đủ cho [$username] (Hiện có: ${wallet.balance}, Yêu cầu: $amount)")
@@ -57,8 +56,7 @@ class PaymentService(
                 orderNumber = orderNumber,
                 isSuccess = false,
                 reason = "Insufficient balance (Available: ${wallet.balance}, Requested: $amount)",
-                skuCode = skuCode,
-                quantity = quantity
+                items = items
             )
         }
 
