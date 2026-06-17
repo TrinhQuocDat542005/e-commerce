@@ -1,6 +1,7 @@
 package com.dat.ecommerce.inventory_service.service
 
 import com.dat.ecommerce.inventory_service.dto.InventoryResponse
+import com.dat.ecommerce.inventory_service.model.Inventory
 import com.dat.ecommerce.inventory_service.model.OutboxEvent
 import com.dat.ecommerce.inventory_service.repository.InventoryRepository
 import com.dat.ecommerce.inventory_service.repository.OutboxRepository
@@ -88,5 +89,10 @@ class InventoryService(
         } else {
             log.error("❌ [Inventory Service] Thất bại hoàn kho: Không tìm thấy mã SKU [$skuCode] trong Database!")
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAllInventory(): List<Inventory> {
+        return inventoryRepository.findAll()
     }
 }

@@ -1,6 +1,7 @@
 package com.dat.ecommerce.order_service.controller
 
 import com.dat.ecommerce.order_service.dto.OrderRequest
+import com.dat.ecommerce.order_service.model.Order
 import com.dat.ecommerce.order_service.service.OrderService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
@@ -8,6 +9,12 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/order")
 class OrderController(private val orderService: OrderService) {
+
+    @GetMapping
+    @ResponseStatus(HttpStatus.OK)
+    fun getAllOrders(): List<Order> {
+        return orderService.getAllOrders()
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED) 

@@ -96,4 +96,9 @@ class OrderService(
             throw IllegalArgumentException("Order not found with order number: $orderNumber")
         }
     }
+
+    @Transactional(readOnly = true)
+    fun getAllOrders(): List<Order> {
+        return orderRepository.findAll().sortedByDescending { it.id }
+    }
 }
