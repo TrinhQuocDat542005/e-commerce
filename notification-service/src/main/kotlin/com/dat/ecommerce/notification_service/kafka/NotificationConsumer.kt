@@ -9,17 +9,24 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
+import io.micrometer.tracing.Tracer
 
 @Component
 class NotificationConsumer(
     private val notificationController: NotificationController,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val tracer: Tracer
 ) {
     private val log = LoggerFactory.getLogger(NotificationConsumer::class.java)
 
     private fun send(message: String, type: String) {
         try {
-            val payload = mapOf("message" to message, "type" to type)
+            val traceId = tracer.currentSpan()?.context()?.traceId()
+            val payload = mapOf(
+                "message" to message,
+                "type" to type,
+                "traceId" to traceId
+            )
             val json = objectMapper.writeValueAsString(payload)
             notificationController.dispatchNotification(json)
         } catch (e: Exception) {

@@ -11,14 +11,31 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import io.micrometer.tracing.Tracer
 
 @Service
 class PaymentService(
     private val walletRepository: WalletRepository,
     private val outboxRepository: OutboxRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val tracer: Tracer
 ) {
     private val log = LoggerFactory.getLogger(PaymentService::class.java)
+
+    private fun getTraceHeadersJson(): String? {
+        return try {
+            val tracingHeaders = mutableMapOf<String, String>()
+            tracer.propagation().inject(tracer.currentSpan()?.context(), tracingHeaders) { carrier, key, value ->
+                carrier[key] = value
+            }
+            if (tracingHeaders.isNotEmpty()) {
+                objectMapper.writeValueAsString(tracingHeaders)
+            } else null
+        } catch (e: Exception) {
+            log.error("Failed to inject trace headers", e)
+            null
+        }
+    }
 
     @Transactional
     fun deductBalance(
@@ -67,7 +84,8 @@ class PaymentService(
             aggregateId = orderNumber,
             eventType = "PaymentResponse",
             payload = payloadJson,
-            status = "PENDING"
+            status = "PENDING",
+            traceHeaders = getTraceHeadersJson()
         )
         outboxRepository.save(outboxEvent)
         log.info("💾 [Payment Service] Đã ghi nhận OutboxEvent thanh toán cho đơn hàng $orderNumber!")

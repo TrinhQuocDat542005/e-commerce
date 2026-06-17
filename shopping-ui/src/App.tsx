@@ -184,7 +184,7 @@ function Dashboard({ token, onLogout }: DashboardProps) {
 
   // Real-time notifications via SSE
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'info' | 'success' | 'error' }>>([])
-  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'info' | 'success' | 'error'; timestamp: Date; read: boolean }>>([])
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'info' | 'success' | 'error'; timestamp: Date; read: boolean; traceId?: string }>>([])
   const [showActivityLog, setShowActivityLog] = useState(false)
 
   const unreadCount = notifications.filter(n => !n.read).length
@@ -281,7 +281,8 @@ function Dashboard({ token, onLogout }: DashboardProps) {
           message: payload.message,
           type: payload.type as 'info' | 'success' | 'error',
           timestamp: new Date(),
-          read: false
+          read: false,
+          traceId: payload.traceId
         }
         setNotifications(prev => [newNotification, ...prev])
 
@@ -586,9 +587,32 @@ function Dashboard({ token, onLogout }: DashboardProps) {
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
                           <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4', color: 'rgba(255, 255, 255, 0.8)' }}>{n.message}</p>
-                          <span style={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.35)', fontFamily: 'monospace' }}>
-                            {n.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.35)', fontFamily: 'monospace' }}>
+                              {n.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                            {n.traceId && (
+                              <span 
+                                title="Click to copy Trace ID"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigator.clipboard.writeText(n.traceId || "")
+                                  alert(`Copied Trace ID: ${n.traceId}`)
+                                }}
+                                style={{ 
+                                  fontSize: '0.65rem', 
+                                  color: 'var(--primary)', 
+                                  fontFamily: 'monospace', 
+                                  cursor: 'pointer',
+                                  background: 'rgba(139, 92, 246, 0.15)',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                trace:{n.traceId.substring(0, 8)}...
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))

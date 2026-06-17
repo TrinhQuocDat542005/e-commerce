@@ -11,15 +11,32 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import io.micrometer.tracing.Tracer
 
 @Service
 class InventoryService(
     private val inventoryRepository: InventoryRepository,
     private val outboxRepository: OutboxRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val tracer: Tracer
 ) {
 
     private val log = LoggerFactory.getLogger(InventoryService::class.java)
+
+    private fun getTraceHeadersJson(): String? {
+        return try {
+            val tracingHeaders = mutableMapOf<String, String>()
+            tracer.propagation().inject(tracer.currentSpan()?.context(), tracingHeaders) { carrier, key, value ->
+                carrier[key] = value
+            }
+            if (tracingHeaders.isNotEmpty()) {
+                objectMapper.writeValueAsString(tracingHeaders)
+            } else null
+        } catch (e: Exception) {
+            log.error("Failed to inject trace headers", e)
+            null
+        }
+    }
 
     // --- Hàm cũ (Giữ nguyên để check stock qua HTTP/Gateway nếu cần) ---
     @Transactional(readOnly = true)
@@ -88,7 +105,8 @@ class InventoryService(
             aggregateId = orderNumber,
             eventType = "InventoryResponse",
             payload = payloadJson,
-            status = "PENDING"
+            status = "PENDING",
+            traceHeaders = getTraceHeadersJson()
         )
         outboxRepository.save(outboxEvent)
         log.info("💾 [Inventory Service] Đã ghi nhận OutboxEvent phản hồi cho đơn hàng $orderNumber!")
