@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package com.ecommerce.common.proto;
+
+option java_multiple_files = true;
+option java_package = "com.ecommerce.common.proto";
+
+message ProductPriceRequest {
+    string skuCode = 1;
+}
+
+message ProductPriceResponse {
+    string skuCode = 1;
+    double price = 2;
+    bool exists = 3;
+}
+
+service ProductService {
+    rpc getProductPriceBySku (ProductPriceRequest) returns (ProductPriceResponse);
+}

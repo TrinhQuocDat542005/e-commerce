@@ -370,6 +370,12 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+.status-pill.pending_payment {
+  background-color: var(--status-pending-payment-glow);
+  color: var(--status-pending-payment);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
 .btn-cancel {
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.3);

@@ -9,7 +9,8 @@ import {
   CheckCircle2, 
   XCircle, 
   ArrowRight,
-  Database
+  Database,
+  Wallet
 } from 'lucide-react'
 import './App.css'
 
@@ -162,6 +163,7 @@ function Dashboard({ token, onLogout }: DashboardProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [orders, setOrders] = useState<Order[]>([])
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
   
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
@@ -197,6 +199,17 @@ function Dashboard({ token, onLogout }: DashboardProps) {
       if (!oRes.ok) throw new Error('Failed to load orders')
       const oData: Order[] = await oRes.json()
       setOrders(oData)
+
+      // 4. Fetch Wallet Balance
+      try {
+        const wRes = await fetch('/api/payment/balance', { headers })
+        if (wRes.ok) {
+          const wData = await wRes.json()
+          setWalletBalance(wData.balance)
+        }
+      } catch (e) {
+        console.error('Failed to load wallet balance', e)
+      }
       
       setErrorMessage(null)
     } catch (err: any) {
@@ -412,7 +425,7 @@ function Dashboard({ token, onLogout }: DashboardProps) {
                     {orders.map(o => {
                       const item = o.orderLineItemsList[0]
                       const orderStatus = o.status || 'PENDING'
-                      const isPending = orderStatus === 'PENDING'
+                      const isPending = orderStatus === 'PENDING' || orderStatus === 'PENDING_PAYMENT'
                       const isConfirmed = orderStatus === 'CONFIRMED'
                       const isCancelled = orderStatus === 'CANCELLED'
 
@@ -457,6 +470,23 @@ function Dashboard({ token, onLogout }: DashboardProps) {
 
         {/* RIGHT COLUMN */}
         <div className="sidebar-column">
+          {/* USER WALLET BALANCE */}
+          <section className="glass-card">
+            <h2 className="card-title">
+              <Wallet size={20} style={{ color: 'var(--status-pending)' }} />
+              <span>User Wallet Balance</span>
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', marginTop: '-10px', marginBottom: '1.5rem' }}>
+              Current balance for user <code>testuser</code> inside <code>payment_db</code>.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', padding: '10px 0' }}>
+              <span style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--status-pending)' }}>
+                {walletBalance !== null ? `$${walletBalance.toFixed(2)}` : 'Loading...'}
+              </span>
+              {walletBalance !== null && <span style={{ fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.4)' }}>USD</span>}
+            </div>
+          </section>
+
           {/* INVENTORY MONITOR */}
           <section className="glass-card">
             <h2 className="card-title">

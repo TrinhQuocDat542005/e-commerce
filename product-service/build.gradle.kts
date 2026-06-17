@@ -40,6 +40,8 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation(project(":common-proto"))
+    implementation("net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 

@@ -32,6 +32,8 @@
   --status-confirmed-glow: rgba(16, 185, 129, 0.2);
   --status-cancelled: #ef4444;
   --status-cancelled-glow: rgba(239, 68, 68, 0.2);
+  --status-pending-payment: #3b82f6;
+  --status-pending-payment-glow: rgba(59, 130, 246, 0.2);
 }
 
 body {
