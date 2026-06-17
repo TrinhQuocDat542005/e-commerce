@@ -372,7 +372,7 @@ function Dashboard({ token, onLogout }: DashboardProps) {
                   const qty = inventory[p.skuCode] ?? 0
                   const isOutOfStock = qty <= 0
                   return (
-                    <div className="product-card" key={p.skuCode}>
+                    <div className="product-card" key={p.id ?? p.skuCode}>
                       <div className="product-header">
                         <h3 className="product-name">{p.name}</h3>
                         <span className="product-sku">{p.skuCode}</span>
