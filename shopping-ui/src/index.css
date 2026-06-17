@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0c0d12;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Premium Design System Colors */
+  --bg-main: #07080d;
+  --bg-card: rgba(20, 22, 34, 0.7);
+  --border-card: rgba(255, 255, 255, 0.08);
+  
+  --primary: #8b5cf6;
+  --primary-glow: rgba(139, 92, 246, 0.35);
+  --secondary: #ec4899;
+  --secondary-glow: rgba(236, 72, 153, 0.35);
+
+  --accent-blue: #3b82f6;
+  
+  --status-pending: #f59e0b;
+  --status-pending-glow: rgba(245, 158, 11, 0.2);
+  --status-confirmed: #10b981;
+  --status-confirmed-glow: rgba(16, 185, 129, 0.2);
+  --status-cancelled: #ef4444;
+  --status-cancelled-glow: rgba(239, 68, 68, 0.2);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 0%, #171630 0%, #07080d 70%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--primary-glow), 0 0 10px rgba(139, 92, 246, 0.5);
+  }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #07080d;
+}
+::-webkit-scrollbar-thumb {
+  background: #25283d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3c4163;
+}
