@@ -199,12 +199,20 @@ function Dashboard({ token, onLogout }: DashboardProps) {
     try {
       // 1. Fetch Products
       const pRes = await fetch('/api/products', { headers })
+      if (pRes.status === 401) {
+        onLogout()
+        return
+      }
       if (!pRes.ok) throw new Error('Failed to load products')
       const pData: Product[] = await pRes.json()
       setProducts(pData)
 
       // 2. Fetch Inventory
       const iRes = await fetch('/api/inventory/all', { headers })
+      if (iRes.status === 401) {
+        onLogout()
+        return
+      }
       if (!iRes.ok) throw new Error('Failed to load stock levels')
       const iData: InventoryItem[] = await iRes.json()
       const invMap: Record<string, number> = {}
@@ -215,6 +223,10 @@ function Dashboard({ token, onLogout }: DashboardProps) {
 
       // 3. Fetch Orders
       const oRes = await fetch('/api/order', { headers })
+      if (oRes.status === 401) {
+        onLogout()
+        return
+      }
       if (!oRes.ok) throw new Error('Failed to load orders')
       const oData: Order[] = await oRes.json()
       setOrders(oData)
@@ -222,6 +234,10 @@ function Dashboard({ token, onLogout }: DashboardProps) {
       // 4. Fetch Wallet Balance
       try {
         const wRes = await fetch('/api/payment/balance', { headers })
+        if (wRes.status === 401) {
+          onLogout()
+          return
+        }
         if (wRes.ok) {
           const wData = await wRes.json()
           setWalletBalance(wData.balance)
