@@ -12,21 +12,26 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import io.micrometer.tracing.Tracer
+import io.micrometer.tracing.propagation.Propagator
 
 @Service
 class PaymentService(
     private val walletRepository: WalletRepository,
     private val outboxRepository: OutboxRepository,
     private val objectMapper: ObjectMapper,
-    private val tracer: Tracer
+    private val tracer: Tracer,
+    private val propagator: Propagator
 ) {
     private val log = LoggerFactory.getLogger(PaymentService::class.java)
 
     private fun getTraceHeadersJson(): String? {
         return try {
             val tracingHeaders = mutableMapOf<String, String>()
-            tracer.propagation().inject(tracer.currentSpan()?.context(), tracingHeaders) { carrier, key, value ->
-                carrier[key] = value
+            val currentContext = tracer.currentSpan()?.context()
+            if (currentContext != null) {
+                propagator.inject(currentContext, tracingHeaders) { carrier, key, value ->
+                    carrier?.put(key, value)
+                }
             }
             if (tracingHeaders.isNotEmpty()) {
                 objectMapper.writeValueAsString(tracingHeaders)
