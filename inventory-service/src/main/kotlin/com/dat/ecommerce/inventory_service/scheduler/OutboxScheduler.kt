@@ -16,7 +16,7 @@ import io.micrometer.tracing.propagation.Propagator
 @Component
 class OutboxScheduler(
     private val outboxRepository: OutboxRepository,
-    private val kafkaTemplate: KafkaTemplate<String, InventoryResponseEvent>,
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
     private val objectMapper: ObjectMapper,
     private val tracer: Tracer,
     private val propagator: Propagator

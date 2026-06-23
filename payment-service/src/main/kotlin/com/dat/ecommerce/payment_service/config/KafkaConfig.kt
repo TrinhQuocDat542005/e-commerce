@@ -5,6 +5,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.CommonErrorHandler
@@ -14,6 +15,14 @@ import org.springframework.util.backoff.FixedBackOff
 
 @Configuration
 class KafkaConfig {
+
+    @Bean
+    @Primary
+    fun kafkaTemplate(kafkaProperties: KafkaProperties): KafkaTemplate<String, Any> {
+        val producerProps = kafkaProperties.buildProducerProperties(null)
+        val factory = DefaultKafkaProducerFactory<String, Any>(producerProps)
+        return KafkaTemplate(factory)
+    }
 
     @Bean
     fun dltKafkaTemplate(kafkaProperties: KafkaProperties): KafkaTemplate<ByteArray, ByteArray> {
