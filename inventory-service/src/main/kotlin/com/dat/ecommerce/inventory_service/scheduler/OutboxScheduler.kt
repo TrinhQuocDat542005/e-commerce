@@ -11,13 +11,15 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import io.micrometer.tracing.Tracer
+import io.micrometer.tracing.propagation.Propagator
 
 @Component
 class OutboxScheduler(
     private val outboxRepository: OutboxRepository,
     private val kafkaTemplate: KafkaTemplate<String, InventoryResponseEvent>,
     private val objectMapper: ObjectMapper,
-    private val tracer: Tracer
+    private val tracer: Tracer,
+    private val propagator: Propagator
 ) {
     private val log = LoggerFactory.getLogger(OutboxScheduler::class.java)
 
@@ -33,10 +35,10 @@ class OutboxScheduler(
         } else null
 
         if (headersMap != null) {
-            val context = tracer.propagation().extractor { carrier: Map<String, String>, key: String ->
+            val spanBuilder = propagator.extract(headersMap) { carrier: Map<String, String>, key: String ->
                 carrier[key]
-            }.extract(headersMap)
-            val span = tracer.nextSpan(context).name(spanName).start()
+            }
+            val span = spanBuilder.name(spanName).start()
             try {
                 return tracer.withSpan(span).use {
                     block()

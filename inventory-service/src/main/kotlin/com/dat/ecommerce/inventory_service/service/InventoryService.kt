@@ -12,13 +12,15 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import io.micrometer.tracing.Tracer
+import io.micrometer.tracing.propagation.Propagator
 
 @Service
 class InventoryService(
     private val inventoryRepository: InventoryRepository,
     private val outboxRepository: OutboxRepository,
     private val objectMapper: ObjectMapper,
-    private val tracer: Tracer
+    private val tracer: Tracer,
+    private val propagator: Propagator
 ) {
 
     private val log = LoggerFactory.getLogger(InventoryService::class.java)
@@ -26,8 +28,11 @@ class InventoryService(
     private fun getTraceHeadersJson(): String? {
         return try {
             val tracingHeaders = mutableMapOf<String, String>()
-            tracer.propagation().inject(tracer.currentSpan()?.context(), tracingHeaders) { carrier, key, value ->
-                carrier[key] = value
+            val currentContext = tracer.currentSpan()?.context()
+            if (currentContext != null) {
+                propagator.inject(currentContext, tracingHeaders) { carrier, key, value ->
+                    carrier?.put(key, value)
+                }
             }
             if (tracingHeaders.isNotEmpty()) {
                 objectMapper.writeValueAsString(tracingHeaders)
